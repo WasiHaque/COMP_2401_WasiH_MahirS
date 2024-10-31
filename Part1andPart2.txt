@@ -1,0 +1,129 @@
+int subsys_append(SubsystemCollection *subsystems, const Subsystem *subsystem) {
+    if (subsystems == NULL) {
+        return ERR_NULL_POINTER;
+    }
+
+    if (subsystem == NULL) {
+        return ERR_NULL_POINTER;
+    }
+
+    if (subsystems->size >= MAX_ARR) {
+        return ERR_MAX_CAPACITY;
+    }
+
+    subsystems->subsystems[subsystems->size] = *subsystem;
+
+    subsystems->size = subsystems->size + 1;
+
+    return ERR_SUCCESS;
+}
+
+int subsys_find(const SubsystemCollection *subsystems, const char *name) {
+    if (subsystems == NULL) {
+        return ERR_NULL_POINTER;
+    }
+
+    if (name == NULL) {
+        return ERR_NULL_POINTER;
+    }
+
+    for (int i = 0; i < subsystems->size; i++) {
+        if (strncmp(subsystems->subsystems[i].name, name, MAX_STR) == 0) {
+            return i;
+        }
+    }
+
+    return ERR_SYS_NOT_FOUND;
+}
+
+
+int subsys_status_set(Subsystem *subsystem, unsigned char status, unsigned char value) {
+    if (subsystem == NULL) return ERR_NULL_POINTER;
+    if (value > 3) return ERR_INVALID_STATUS;
+
+    if (status == STATUS_POWER) {
+        subsystem->status = subsystem->status & ~(1 << 7);
+        subsystem->status = subsystem->status | ((value & 1) << 7);
+    } 
+    else if (status == STATUS_DATA) {
+        subsystem->status = subsystem->status & ~(1 << 6);
+        subsystem->status = subsystem->status | ((value & 1) << 6);
+    } 
+    else if (status == STATUS_ACTIVITY) {
+        subsystem->status = subsystem->status & ~(1 << 5);
+        subsystem->status = subsystem->status | ((value & 1) << 5);
+    } 
+    else if (status == STATUS_ERROR) {
+        subsystem->status = subsystem->status & ~(1 << 4);
+        subsystem->status = subsystem->status | ((value & 1) << 4);
+    } 
+    else if (status == STATUS_PERFORMANCE) {
+        subsystem->status = subsystem->status & ~(3 << 2);
+        subsystem->status = subsystem->status | ((value & 3) << 2);
+    } 
+    else if (status == STATUS_RESOURCE) {
+        subsystem->status = subsystem->status & ~3;
+        subsystem->status = subsystem->status | (value & 3);
+    } 
+    else {
+        return ERR_INVALID_STATUS;
+    }
+
+    return ERR_SUCCESS;
+}
+
+int subsys_data_set(Subsystem *subsystem, unsigned int new_data, unsigned int *old_data) {
+    if (subsystem == NULL) {
+        return ERR_NULL_POINTER;
+    }
+
+    if (old_data != NULL) {
+        *old_data = subsystem->data;
+    }
+
+    subsystem->data = new_data;
+
+    unsigned char QueuedBit = 1 << 6;
+    subsystem->status = subsystem->status | QueuedBit;
+
+    return ERR_SUCCESS;
+}
+
+int subsys_data_get(Subsystem *subsystem, unsigned int *data) {
+    if (subsystem == NULL || data == NULL) {
+        return ERR_NULL_POINTER;
+    }
+
+    unsigned char QueuedBit = 1 << 6;
+    if ((subsystem->status & QueuedBit) == 0) {
+        *data = 0;
+        return ERR_NO_DATA;
+    }
+
+    *data = subsystem->data;
+    subsystem->data = 0;
+
+    subsystem->status = subsystem->status & ~QueuedBit;
+
+    return ERR_SUCCESS;
+}
+
+
+int subsys_print(Subsystem *subsystem) {
+    if (subsystem == NULL) {
+        return ERR_NULL_POINTER;
+    }
+
+    printf("%-16s ", subsystem->name);
+
+    unsigned int PrintData;
+    int result = subsys_data_get(subsystem, &PrintData);
+    if (result == ERR_SUCCESS) {
+        printf("%08X ", PrintData);
+    } else {
+        printf("00000000 "); 
+    }
+
+    printf("%u\n", subsystem->status); 
+    return ERR_SUCCESS;
+}
