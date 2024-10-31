@@ -1,0 +1,130 @@
+int subsys_data_set(Subsystem *subsystem, unsigned int new_data, unsigned int *old_data) {
+    if (subsystem == NULL) {
+        return ERR_NULL_POINTER;
+    }
+
+    if (old_data != NULL) {
+        *old_data = subsystem->data;
+    }
+
+    subsystem->data = new_data;
+
+    unsigned char QueuedBit = 1 << 6;
+    subsystem->status = subsystem->status | QueuedBit;
+
+    return ERR_SUCCESS;
+}
+
+int subsys_data_get(Subsystem *subsystem, unsigned int *data) {
+    if (subsystem == NULL || data == NULL) {
+        return ERR_NULL_POINTER;
+    }
+
+    unsigned char QueuedBit = 1 << 6;
+    if ((subsystem->status & QueuedBit) == 0) {
+        *data = 0;
+        return ERR_NO_DATA;
+    }
+
+    *data = subsystem->data;
+    subsystem->data = 0;
+
+    subsystem->status = subsystem->status & ~QueuedBit;
+
+    return ERR_SUCCESS;
+}
+
+
+int subsys_remove(SubsystemCollection *subsystems, int index) {
+
+    //null checker and invalid index checkers 
+    if (subsystems == NULL) {
+        return ERR_NULL_POINTER;
+    }
+    
+    if (index < 0) {
+        return ERR_INVALID_INDEX;
+    }
+
+       if (subsystems->size == 0) {
+        return ERR_NO_DATA;
+    }
+
+    if (index >= subsystems->size){
+        return ERR_INVALID_INDEX;
+    }
+
+    //interate and shift elements to fill empty space and shift out index (No way to remove an index memory in C)
+    for (int i = index; i < subsystems->size - 1; i++) {
+        subsystems->subsystems[i] = subsystems->subsystems[i + 1];
+    }
+
+    // Removal sucessful decrement size 
+    subsystems->size = subsystems->size - 1; 
+
+    return ERR_SUCCESS;
+}
+
+
+int subsys_filter(const SubsystemCollection *src, SubsystemCollection *dest, const unsigned char *filter) {
+    if (filter == NULL) {
+        return ERR_NULL_POINTER;
+    }
+
+    if (src == NULL) {
+        return ERR_NULL_POINTER;
+    }
+
+    if (dest == NULL) {
+        return ERR_NULL_POINTER;
+    }
+
+
+    unsigned char filter_mask = 0;
+    unsigned char wildcard_mask = 0;
+
+    for (int i = 0; i < 8; i++) {
+        unsigned char bit_position = 1 << (7 - i);
+
+        if (filter[i] == '1') {
+        filter_mask = filter_mask | bit_position;
+        } else if (filter[i] == '*') {
+        wildcard_mask = wildcard_mask | bit_position;
+        }
+    }
+
+    filter_mask = ~filter_mask;
+    dest->size = 0;
+
+    for (unsigned int i = 0; i < src->size; i++) {
+        unsigned char status = src->subsystems[i].status;
+        unsigned char result = (filter_mask ^ status) | wildcard_mask;
+
+        if ((result & 0xFF) == 0xFF) {
+            dest->subsystems[dest->size] = src->subsystems[i];
+            dest->size++;
+        }
+    }
+
+    return ERR_SUCCESS;
+}
+
+
+int subsys_print(Subsystem *subsystem) {
+    if (subsystem == NULL) {
+        return ERR_NULL_POINTER;
+    }
+
+    printf("%-16s ", subsystem->name);
+
+    unsigned int PrintData;
+    int result = subsys_data_get(subsystem, &PrintData);
+    if (result == ERR_SUCCESS) {
+        printf("%08X ", PrintData);
+    } else {
+        printf("00000000 "); 
+    }
+
+    printf("%u\n", subsystem->status); 
+    return ERR_SUCCESS;
+}
