@@ -1,0 +1,120 @@
+int main() {
+    SubsystemCollection subsystems;
+    subsys_collection_init(&subsystems);
+
+
+    int choice;
+    // Using while loop to keep menu on
+    // Various functions are called depending on user input
+    while (1) {
+        if (print_menu(&choice) != ERR_SUCCESS) {
+            printf("Cannot display menu.\n");
+            continue;
+        }
+
+        if (choice == MENU_EXIT) {
+            printf("Exiting program.\n");
+            break;
+        }
+
+        if (choice == MENU_ADD) {
+            char name[MAX_STR];
+            printf("Enter subsystem name: ");
+            scanf("%15s", name);
+
+            Subsystem new_subsystem;
+            if (subsys_init(&new_subsystem, name, 0) == ERR_SUCCESS) {
+                if (subsys_append(&subsystems, &new_subsystem) != ERR_SUCCESS) {
+                    printf("Subsystem could not be added.\n");
+                }
+            } else {
+                printf("Invalid subsystem name.\n");
+            }
+        }
+        else if (choice == MENU_PRINT) {
+            char name[MAX_STR];
+            printf("Enter the name of the subsystem to print: ");
+            scanf("%15s", name);
+
+            int index = subsys_find(&subsystems, name);
+            if (index >= 0) {
+                subsys_print(&subsystems.subsystems[index]);
+            } else {
+                printf("Subsystem not found.\n");
+            }
+        }
+        else if (choice == MENU_PRINTALL) {
+            if (subsys_collection_print(&subsystems) == ERR_NO_DATA) {
+                printf("Nothing to print.\n");
+            }
+        }
+        else if (choice == MENU_STATUS) {
+            char name[MAX_STR];
+            unsigned char status_id, value;
+            printf("Enter subsystem name, status ID, and new value: ");
+            if (scanf("%15s %hhu %hhu", name, &status_id, &value) == 3) {
+                int index = subsys_find(&subsystems, name);
+                if (index >= 0) {
+                    if (subsys_status_set(&subsystems.subsystems[index], status_id, value) != ERR_SUCCESS) {
+                        printf("Invalid status or value.\n");
+                    }
+                } else {
+                    printf("Subsystem not found.\n");
+                }
+            } else {
+                printf("Invalid format.\n");
+                while (getchar() != '\n');
+            }
+        }
+        else if (choice == MENU_REMOVE) {
+            int index;
+            printf("Enter index of subsystem to remove: ");
+            if (scanf("%d", &index) == 1) {
+                if (subsys_remove(&subsystems, index) != ERR_SUCCESS) {
+                    printf("Error: Invalid index.\n");
+                }
+            } else {
+                printf("Error: Invalid input format.\n");
+                while (getchar() != '\n');
+            }
+        }
+        else if (choice == MENU_FILTER) {
+            char filter[9];
+            printf("Enter filter string (8 characters, 1/0/*): ");
+            scanf("%8s", filter);
+
+            SubsystemCollection filtered;
+            subsys_collection_init(&filtered);
+            if (subsys_filter(&subsystems, &filtered, (unsigned char*)filter) == ERR_SUCCESS) {
+                subsys_collection_print(&filtered);
+            } else {
+                printf("Error: Invalid filter.\n");
+            }
+        }
+        else if (choice == MENU_DATA) {
+            char name[MAX_STR];
+            unsigned int new_data, old_data;
+            printf("Enter subsystem name and hexadecimal value: ");
+            if (scanf("%15s %X", name, &new_data) == 2) {
+                int index = subsys_find(&subsystems, name);
+                if (index >= 0) {
+                    if (subsys_data_set(&subsystems.subsystems[index], new_data, &old_data) == ERR_SUCCESS) {
+                        printf("Previous data: %X\n", old_data);
+                    } else {
+                        printf("Cannot set data.\n");
+                    }
+                } else {
+                    printf("Subsystem not found.\n");
+                }
+            } else {
+                printf("Invalid format.\n");
+                while (getchar() != '\n');
+            }
+        }
+        else {
+            printf("Invalid option. \n");
+        }
+    }
+
+    return 0;
+}
